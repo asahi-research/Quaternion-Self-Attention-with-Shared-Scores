@@ -1,0 +1,132 @@
+
+
+# Dataset paths
+data:
+  train:
+    clean_dir: ./dataset/voicebank-demand-16k/clean_trainset_28spk_wav
+    noisy_dir: ./dataset/voicebank-demand-16k/noisy_trainset_28spk_wav
+  test:
+    clean_dir: ./dataset/voicebank-demand-16k/clean_testset_wav
+    noisy_dir: ./dataset/voicebank-demand-16k/noisy_testset_wav
+
+# Audio processing
+audio:
+  sample_rate: 16000
+  segment_length: 16000
+  n_fft: 400
+  hop_length: 100
+  window_type: hann
+
+# Model configuration
+model:
+  name: QuaternionGenerator
+
+  encoder:
+    in_channels: 4
+    num_blocks: 3
+    growth_rate: 64
+    dilations: [1, 2, 4, 8]
+    kernel_size: [3, 3]
+    downsample_freq: true
+    use_gate: true
+    compression: 0.5
+    output_channels: 64
+
+  bottleneck:
+    enabled: true
+    d_model: 64
+    n_heads: 4
+    n_layers: 2
+    conv_kernel_size: 31
+    dropout: 0.1
+
+  decoder:
+    num_blocks: 3
+    growth_rate: 64
+    dilations: [8, 4, 2, 1]
+    kernel_size: [3, 3]
+    upsample_freq: true
+    use_gate: true
+    compression: 0.5
+
+  output_proj:
+    intermediate_channels: 128
+    kernel_size: [3, 3]
+    use_bias_first: false
+    use_bias_second: true
+
+# Loss configuration
+loss:
+  weights:
+    multi_stft: 3.5
+    sisdr: 2.0
+    rms: 1.0
+    complex_l1: 2.5
+    pesq: 1.0
+
+  stft:
+    fft_sizes: [512, 1024, 2048]
+    hop_sizes: [128, 256, 512]
+    win_lengths: [512, 1024, 2048]
+    sc_weight: 0.3
+    mag_weight: 0.7
+
+  pesq_alpha: 0.5
+
+# Training configuration
+training:
+  batch_size: 8
+  num_epochs: 400
+  grad_clip: 1.0
+  generator_lr: 0.0002
+  betas: [0.5, 0.999]
+
+  scheduler:
+    enabled: true
+    type: cosine
+    warmup_epochs: 10
+    min_lr: 0.0001
+
+# System configuration
+system:
+  num_workers: 4
+  pin_memory: true
+  gpus: "0"
+  master_port: 12382
+
+  amp:
+    enabled: false
+    opt_level: O1
+
+# Checkpointing
+checkpoint:
+  output_dir: ./checkpoints/quaternion_comformer
+  save_interval: 50
+  keep_last_n: 5
+  save_best: true
+  resume: null
+
+# Logging
+logging:
+  log_interval: 10
+
+  tensorboard:
+    enabled: true
+    log_dir: ./logs
+    log_audio: true
+    log_spectrogram: true
+    audio_batch_idx: 0
+
+# Validation
+validation:
+  interval: 1
+  metrics: [sisdr, pesq]
+  val_split_size: 100
+  val_seed: 48
+  global_seed: 42
+
+  early_stopping:
+    enabled: false
+    patience: 50
+    min_delta: 0.001
+    metric: sisdr
